@@ -1,16 +1,201 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# MeetUp - Social Media Application
 
-Currently, two official plugins are available:
+A modern social media platform built with React, Tailwind CSS, and Clerk authentication.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 📋 Table of Contents
 
-## React Compiler
+- [Project Setup](#project-setup)
+- [Component Documentation](#component-documentation)
+- [Features](#features)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Project Setup
 
-## Expanding the ESLint configuration
+### Prerequisites
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Node.js (v16+)
+- npm or yarn
+
+### Installation
+
+```bash
+# Clone the repository
+git clone <repo-url>
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create .env.local file and add Clerk credentials
+VITE_CLERK_PUBLISHABLE_KEY=your_key_here
+
+# Start development server
+npm run dev
+```
+
+## 📦 Component Documentation
+
+### **Layout.jsx**
+Main wrapper component that manages the overall page structure.
+
+**Features:**
+- Sidebar toggle for mobile devices
+- Menu hamburger button
+- Outlet for nested routes
+
+**Usage:**
+```jsx
+<Layout> // Wraps all authenticated pages
+    <Outlet /> // Renders child routes
+</Layout>
+```
+
+---
+
+### **SideBar.jsx**
+Left navigation sidebar with user profile and menu items.
+
+**Features:**
+- Logo navigation
+- Menu items (dynamically loaded)
+- User profile section
+- Create Post button
+- Logout functionality
+
+**Props:**
+- `sideBarOpen` (boolean) - Controls sidebar visibility
+- `setSideBarOpen` (function) - Toggle sidebar
+
+---
+
+### **MenuItems.jsx**
+Reusable navigation menu with active route highlighting.
+
+**Features:**
+- Dynamic menu items from assets
+- Active state styling
+- Icon support with lucide-react
+- Close sidebar on mobile after selection
+
+**Props:**
+- `setSideBarOpen` (function) - Close sidebar after navigation
+
+---
+
+### **Feed.jsx**
+Main feed page displaying posts and stories.
+
+**Features:**
+- Stories section
+- Post list (placeholder)
+- Right sidebar (Sponsored, Messages)
+- Loading state
+- Responsive layout
+
+**Data:**
+- Uses `dummyPostsData` from assets
+
+---
+
+### **Loading.jsx**
+Spinner component for async operations.
+
+**Features:**
+- Customizable height
+- Animated spinner
+- Centered alignment
+
+**Props:**
+- `height` (string) - Default: "100vh"
+
+**Usage:**
+```jsx
+<Loading height="300px" />
+```
+
+---
+
+### **StoriesBar.jsx**
+Stories section (empty - ready for implementation).
+
+**Purpose:** Display user stories in feed.
+
+---
+
+### **CreatePost.jsx**
+Create new post page (empty - ready for implementation).
+
+**Purpose:** Form to create and publish new posts.
+
+---
+
+### **Login.jsx**
+Authentication page with Clerk integration.
+
+**Features:**
+- Branding section
+- User testimonial (5-star rating)
+- SignIn form via Clerk
+- Responsive design
+
+---
+
+### **ChatBox.jsx**
+Direct messaging interface (referenced in routes).
+
+---
+
+### **Connections.jsx**
+User connections/friends page (referenced in routes).
+
+---
+
+### **Messages.jsx**
+Messages list page (referenced in routes).
+
+---
+
+### **Discover.jsx**
+Discovery page for finding content (referenced in routes).
+
+---
+
+### **Profile.jsx**
+User profile page with dynamic profile support.
+
+---
+
+## 🎨 App.jsx - Routing Structure
+
+```
+/ (Layout)
+├── / (Feed) - Default
+├── /messages (Messages)
+├── /messages/:userId (ChatBox)
+├── /connections (Connections)
+├── /discover (Discover)
+├── /profile (Profile)
+├── /profile/:profileId (Profile - specific user)
+└── /create-post (CreatePost)
+```
+
+## 📱 Styling
+
+- **Tailwind CSS** for utility-first styling
+- **Lucide React** for icons
+- Custom scrollbar hiding class: `no-scrollbar`
+- Gradient buttons and backgrounds
+
+## 🔐 Authentication
+
+Uses **Clerk** for secure authentication with `UserButton` component.
+
+## 🎯 Key Features
+
+- ✅ Responsive design (mobile, tablet, desktop)
+- ✅ Dark/Light mode ready
+- ✅ Protected routes
+- ✅ User authentication
+- ✅ Dynamic navigation
