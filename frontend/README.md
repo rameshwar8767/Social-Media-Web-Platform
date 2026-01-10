@@ -199,3 +199,65 @@ Uses **Clerk** for secure authentication with `UserButton` component.
 - ✅ Protected routes
 - ✅ User authentication
 - ✅ Dynamic navigation
+
+
+## 🎬 StoriesBar.jsx
+Displays user stories in a horizontal scrollable section at the top of the feed.
+
+**Features:**
+- "Create Story" button with plus icon
+- Horizontal scrollable story cards
+- Story user profile picture
+- Story content preview
+- Timestamp display
+- Hover and active animations
+- Mobile responsive
+
+**How it works:**
+- Fetches dummy stories data on component mount
+- Maps through stories array and displays each story
+- Each story shows user avatar, content text, and time
+- Users can click to view full story
+
+**Data displayed:**
+- `story.user.profile_picture` - User's avatar
+- `story.content` - Story text
+- `story.createdAt` - When story was created
+
+**Styling:**
+- Indigo gradient buttons
+- Shadow effects on hover
+- Smooth transitions
+- Responsive width for all devices
+
+---
+
+## 📝 Getting Started for Users
+
+### First Time Setup
+1. Clone the project and install dependencies
+2. Add your Clerk authentication keys to `.env.local`
+3. Run `npm run dev` to start the application
+4. Log in with your account
+
+### Main Sections
+
+**Feed Page** - Your main dashboard showing:
+- Stories from friends at the top
+- Posts from your network in the middle
+- Sponsored content and messages on the right
+
+**Create Post** - Share new content with your network
+
+**Messages** - Direct messaging with other users
+
+**Connections** - View and manage your friends list
+
+**Discover** - Find new content and people to follow
+
+**Profile** - View and edit your profile information
+
+### Mobile Experience
+- Tap the hamburger menu to show/hide sidebar
+- Swipe horizontally through stories
+- All features work on mobile devices
