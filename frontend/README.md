@@ -261,3 +261,44 @@ Displays user stories in a horizontal scrollable section at the top of the feed.
 - Tap the hamburger menu to show/hide sidebar
 - Swipe horizontally through stories
 - All features work on mobile devices
+
+
+### **StoryModel.jsx**
+Modal component for creating stories with rich text and media support.
+
+**Features:**
+- Text mode with drag-and-drop positioning
+- Media upload (images and videos)
+- Background gradient picker (18 presets)
+- Text color customization
+- Font family selection (sans, serif, mono)
+- Bold and italic text styling
+- Font size adjustment (16-64px)
+- Emoji picker integration
+- Music/audio upload
+- Real-time canvas preview
+- Mouse wheel zoom for text
+
+**State:**
+- `mode` - Current creation mode (text/media)
+- `text` - Story text content
+- `textColor` - Selected text color
+- `fontSize` - Dynamic font size
+- `fontFamily` - Typography style
+- `bold/italic` - Text formatting
+- `background` - Gradient background
+- `media` - Uploaded image/video file
+- `song` - Uploaded audio file
+- `position` - Text position on canvas
+
+**Interactions:**
+- Drag text to reposition on canvas
+- Scroll wheel to zoom text
+- Click emoji button to add emojis
+- Upload media to switch to media mode
+- Background and color pickers for customization
+
+**Props:**
+- `setShowModel` (function) - Close modal
+- `fetchStories` (function) - Refresh stories after creation
+

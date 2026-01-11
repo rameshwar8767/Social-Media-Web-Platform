@@ -1,89 +1,43 @@
-// import React, { useEffect, useState } from 'react'
-// import { dummyStoriesData } from '../assets/assets';
-// import { Plus } from 'lucide-react';
-
-// const StoriesBar = () => {
-
-//     const [stories,setStories] = useState([]);
-
-//     const fetchStories = async ()=>{
-//         setStories(dummyStoriesData)
-//     }
-
-//     useEffect(()=>{
-//         fetchStories()
-//     })
-//   return (
-//     <div className='w-screen sm:w-[calc(100vw-240px)] lg:max-w-2xl no-scrollbar overflow-x-auto px-4'>
-//         <div className='flex gap-4 pb-5'>
-//             {/* Add story card */}
-//             <div className="rounded-lg shadow-sm w-32 h-40 aspect-[3/4] cursor-pointer 
-//             hover:shadow-lg transition-all duration-200 
-//             border-2 border-dashed border-indigo-300 
-//             bg-gradient-to-b from-indigo-50 to-white">
-                
-//                 <div className='h-full flex flex-col items-center justify-center p-4'>
-//                     <div className='size-10 bg-indigo-500 rounded-full flex items-center justify-center mb-3'>
-//                         <Plus className='w-5 h-5 text-white' />
-//                     </div>
-//                     <p className='text-sm font-medium text-slate-700 text-center'>Create Story</p>
-//                 </div>
-//             </div>
-
-//             {/* <div className="rounded-lg shadow-sm min-w-[120px] max-w-[120px] max-h-[160px] aspect-[3/4]
-//             cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 ease-out
-//             border-2 border-dashed border-indigo-300
-//             bg-gradient-to-b from-indigo-50 to-white
-//             flex items-center justify-center text-indigo-400 text-sm">
-
-//                 Add Image
-//             </div> */}
-
-
-//             {/* Story Cards */}
-//             {
-//                 stories.map((story,index)=>(
-//                     <div key={index} className={`relative rounded-lg shadow min-w-30 max-w-30 max-h-40cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-b from-indigo-500 to-purple-600 hover:from-indigo-700 hover:to-purple-800 active:scale-95`}>
-//                         <img className='absolute size-8 top-3 left-3 z-10 rounded-full ring ring-gray-100 shadow' src={story.user.profile_picture} alt="" />
-//                         <p className='absolute top-18 left-3 text-white/60 text-sm truncate max-w-24'>{story.content}</p>
-//                         <p className='text-white absolute bottom-1 right-2 z-10 text-xs'>{story.createdAt}</p>
-//                     </div>
-//                 ))
-//             }
-//         </div>
-      
-//     </div>
-//   )
-// }
-
-// export default StoriesBar
 import React, { useEffect, useState } from 'react'
 import { dummyStoriesData } from '../assets/assets'
 import { Plus } from 'lucide-react'
+import moment from 'moment'
+import StoryModel from './StoryModel'
+import StoryViewer from './StoryViewer'
 
 const StoriesBar = () => {
   const [stories, setStories] = useState([])
+  const [showModel, setShowModel] = useState(false)
+  const [viewStory, setViewStory] = useState(null) // ✅ FIXED
+
+  // Fetch stories (later replace with API)
+  const fetchStories = () => {
+    setStories(dummyStoriesData || []) // defensive
+  }
 
   useEffect(() => {
-    setStories(dummyStoriesData)
-  }, []) // ✅ FIXED
+    fetchStories()
+  }, [])
 
   return (
-    <div className="w-screen sm:w-[calc(100vw-240px)] lg:max-w-2xl no-scrollbar overflow-x-auto px-4">
+    <div className="w-screen sm:w-[calc(100vw-240px)] lg:max-w-2xl px-4 overflow-x-auto no-scrollbar">
       <div className="flex gap-4 pb-5">
 
         {/* ➕ Add Story */}
         <div
-          className="rounded-lg shadow-sm min-w-[120px] h-40 aspect-[3/4] cursor-pointer
-          hover:shadow-lg transition-all duration-200
-          border-2 border-dashed border-indigo-300
-          bg-gradient-to-b from-indigo-50 to-white"
+          onClick={() => setShowModel(true)}
+          className="min-w-[120px] h-40 aspect-[3/4]
+          rounded-xl border-2 border-dashed border-indigo-300
+          bg-gradient-to-b from-indigo-50 to-white
+          flex items-center justify-center
+          cursor-pointer transition
+          hover:shadow-lg hover:scale-[1.02]"
         >
-          <div className="h-full flex flex-col items-center justify-center p-4">
-            <div className="size-10 bg-indigo-500 rounded-full flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center gap-2">
+            <div className="size-10 bg-indigo-500 rounded-full flex items-center justify-center">
               <Plus className="w-5 h-5 text-white" />
             </div>
-            <p className="text-sm font-medium text-slate-700 text-center">
+            <p className="text-sm font-medium text-slate-700">
               Create Story
             </p>
           </div>
@@ -93,33 +47,73 @@ const StoriesBar = () => {
         {stories.map((story) => (
           <div
             key={story.id}
-            className="relative rounded-lg shadow min-w-[120px] h-40 aspect-[3/4]
-            cursor-pointer overflow-hidden
-            hover:shadow-lg transition-all duration-200
-            bg-gradient-to-b from-indigo-500 to-purple-600
-            hover:from-indigo-700 hover:to-purple-800
-            active:scale-95"
+            onClick={() => setViewStory(story)}
+            className="relative min-w-[120px] h-40 aspect-[3/4]
+            rounded-xl overflow-hidden cursor-pointer
+            shadow transition
+            hover:shadow-xl hover:scale-[1.03]
+            active:scale-95 bg-black"
           >
+            {/* Media */}
+            {story.media_type !== 'text' && (
+              <div className="absolute inset-0 z-0">
+                {story.media_type === "image" ? (
+                  <img
+                    src={story.media_url}
+                    alt="story"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <video
+                    src={story.media_url}
+                    className="h-full w-full object-cover"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Overlay */}
+            <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+
             {/* Profile */}
             <img
-              className="absolute size-8 top-3 left-3 z-10 rounded-full
-              ring-2 ring-white shadow"
               src={story.user.profile_picture}
               alt={story.user.name}
+              className="absolute top-3 left-3 z-20 size-8 rounded-full ring-2 ring-white shadow"
             />
 
             {/* Content */}
-            <p className="absolute top-14 left-3 text-white/80 text-sm truncate max-w-[90px]">
+            <p className="absolute top-14 left-3 z-20 text-white text-sm font-medium truncate max-w-[90px]">
               {story.content}
             </p>
 
             {/* Time */}
-            <p className="text-white/80 absolute bottom-1 right-2 z-10 text-xs">
-              {story.createdAt}
+            <p className="absolute bottom-1 right-2 z-20 text-xs text-white/80">
+              {moment(story.createdAt).fromNow()}
             </p>
           </div>
         ))}
       </div>
+
+      {/* ➕ Add Story Modal */}
+      {showModel && (
+        <StoryModel
+          setShowModel={setShowModel}
+          fetchStories={fetchStories}
+        />
+      )}
+
+      {/* 👁️ View Story Modal */}
+      {viewStory && (
+        <StoryViewer
+          viewStory={viewStory}
+          setViewStory={setViewStory}
+        />
+      )}
     </div>
   )
 }
