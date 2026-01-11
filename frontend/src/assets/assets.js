@@ -217,7 +217,7 @@ export const dummyRecentMessagesData = [
     },
     {
         "_id": "686fb66c7f0dcbff63b239e7",
-        "from_user_id": dummyUser3Data,
+        "from_user_id": dummyUserData,
         "to_user_id": dummyUserData,
         "text": "how are you",
         "message_type": "text",
