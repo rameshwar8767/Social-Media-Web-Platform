@@ -89,7 +89,7 @@ const Messages = () => {
   )
 }
 
-// export default Messages
+export default Messages
 
 // import React, { useMemo, useState } from "react"
 // import { dummyConnectionsData } from "../assets/assets"
