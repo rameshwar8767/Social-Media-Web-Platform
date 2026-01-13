@@ -1,0 +1,31 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/rameshwar8767/Social-Media-Web-Platform#readme",
+  "bugs": {
+    "url": "https://github.com/rameshwar8767/Social-Media-Web-Platform/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rameshwar8767/Social-Media-Web-Platform.git"
+  },
+  "license": "ISC",
+  "author": "Rameshwar Mane",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "server" : "nodemon src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mongoose": "^9.1.3",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
