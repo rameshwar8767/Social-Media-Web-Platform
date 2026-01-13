@@ -100,6 +100,7 @@ import Loading from "../components/Loading"
 import PostCard from "../components/PostCard"
 import UserProfileInfo from "../components/UserProfileInfo"
 import moment from "moment"
+import ProfileModel from "../components/ProfileModel"
 
 const Profile = () => {
   const { profileId } = useParams()
@@ -223,22 +224,7 @@ const Profile = () => {
       </div>
 
       {/* Edit Profile Modal Placeholder */}
-      {showEdit && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl shadow max-w-sm w-full">
-            <h3 className="font-semibold text-lg mb-2">Edit Profile</h3>
-            <p className="text-sm text-gray-600">
-              Profile edit modal goes here.
-            </p>
-            <button
-              onClick={() => setShowEdit(false)}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {showEdit && <ProfileModel setShowEdit={setShowEdit}/> }
     </div>
   )
 }
