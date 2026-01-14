@@ -1,6 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import {inngest} from "./inngest/index.js"
 
 const app = express();
 
@@ -24,6 +25,8 @@ app.get("/", (req, res) => {
     message: "API is working 🚀"
   })
 })
+
+app.use("/api/inngest", serve({ client: inngest, functions }));
 
 // 404 handler
 app.use((req, res) => {
