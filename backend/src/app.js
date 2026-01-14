@@ -2,7 +2,8 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import {inngest} from "./inngest/index.js"
-
+import { serve } from "inngest/express";
+import {functions } from "./inngest/index.js"
 const app = express();
 
 app.use(
