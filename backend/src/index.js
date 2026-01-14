@@ -1,11 +1,29 @@
-import dotenv from "dotenv"
-import app from "./app.js"
-import connectDB from "./db/db.js"
+import app from "./app.js";
+import dotenv from "dotenv";
+import connectDB from "./db/db.js";
 
-dotenv.config({ path: "./.env" })
+dotenv.config({
+    path: "./.env"
+});
 
-// Connect DB once (Vercel supports this)
-await connectDB()
-console.log("✅ Database connected")
+const port = process.env.PORT || 3000;
 
-export default app
+connectDB()
+    .then(()=>{
+        app.listen(port,()=>{
+            console.log(`Server is running on port ${port}`);
+        });
+        console.log("Database connected successfully");
+    })
+    .catch((error)=>{
+        console.error("Database connection failed:",error);
+        process.exit(1);
+    });
+
+
+
+
+
+app.get("/",(req,res)=>{
+    res.send("API is working");
+})
