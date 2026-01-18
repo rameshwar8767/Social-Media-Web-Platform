@@ -1,5 +1,11 @@
 import { Inngest } from "inngest";
 import { User } from "../models/user.models.js";
+import dotenv from "dotenv";
+
+
+dotenv.config({
+    path: "../../.env"
+});
 
 // Create a client to send and receive events
 export const inngest = new Inngest({
