@@ -27,7 +27,7 @@
     "multer": "^2.0.2"
   },
   "devDependencies": {
-    "inngest": "^3.49.1",
+    "inngest": "^3.49.3",
     "inngest-cli": "^1.16.0",
     "nodemon": "^3.1.11"
   }
