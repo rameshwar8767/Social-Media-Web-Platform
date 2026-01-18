@@ -1,29 +1,27 @@
-import app from "./app.js";
 import dotenv from "dotenv";
+import http from "http";
+import app from "./app.js";
 import connectDB from "./db/db.js";
+import { initSocket } from "./sockets/index.js";
 
-dotenv.config({
-    path: "./.env"
-});
+dotenv.config({ path: "./.env" });
 
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-connectDB()
-    .then(()=>{
-        app.listen(port,()=>{
-            console.log(`Server is running on port ${port}`);
-        });
-        console.log("Database connected successfully");
-    })
-    .catch((error)=>{
-        console.error("Database connection failed:",error);
-        process.exit(1);
+const startServer = async () => {
+  try {
+    await connectDB();
+    
+    const server = http.createServer(app);
+    initSocket(server);
+
+    server.listen(PORT, () => {
+      console.log(`🚀 API + Socket.IO → http://localhost:${PORT}`);
     });
+  } catch (error) {
+    console.error("❌ Failed:", error);
+    process.exit(1);
+  }
+};
 
-
-
-
-
-app.get("/",(req,res)=>{
-    res.send("API is working");
-})
+startServer();

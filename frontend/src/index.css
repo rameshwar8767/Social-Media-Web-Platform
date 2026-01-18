@@ -1,11 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 
 *{
   font-family: "Outfit", sans-serif;
 }
 
-.no-scrollbar::-webkit-scrollbar{
-  display: none;
+
+@layer components {
+  .btn-primary { @apply bg-gradient-to-r from-primary-500 to-accent-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-accent-600 shadow-lg transition-all duration-200; }
+  .post-card { @apply bg-card/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-slate-200/50 hover:shadow-2xl transition-all; }
+  .input-field { @apply w-full p-4 border border-slate-300/50 rounded-xl bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all; }
 }
