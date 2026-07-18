@@ -1,117 +1,197 @@
-import { asyncHandler } from '../utils/asyncHandler.js';
-import { ApiError } from '../utils/ApiError.js';
-import { ApiResponse } from '../utils/ApiResponse.js';
-import { Story } from '../models/story.model.js';
-import { uploadToCloudinary } from '../config/cloudinary.js';
-import fs from 'fs';
+import fs from "fs";
+import mongoose from "mongoose";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { Story } from "../models/story.model.js";
+import { uploadImage, uploadVideo } from "../services/cloudinary.service.js";
+
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const safeUnlink = (filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+};
 
 const createStory = asyncHandler(async (req, res) => {
-  const mediaFiles = req.files || [];
-  if (!mediaFiles.length) throw new ApiError(400, 'Media required');
+  const mediaFiles = Array.isArray(req.files) ? req.files : [];
 
-  const media = await Promise.all(
-    mediaFiles.map(async (file) => {
-      const result = await uploadToCloudinary(file.path, {
-        folder: 'social_media/stories'
-      });
-      fs.unlinkSync(file.path);
-      return { 
-        url: result.secure_url, 
-        public_id: result.public_id,
-        type: file.mimetype.split('/')[0]
-      };
-    })
-  );
+  if (!mediaFiles.length) {
+    throw new ApiError(400, "At least one media file is required");
+  }
 
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);  // 24h
+  let media = [];
+
+  try {
+    media = await Promise.all(
+      mediaFiles.map(async (file) => {
+        let result;
+
+        if (file.mimetype.startsWith("image/")) {
+          result = await uploadImage(file.path, "social_media/stories");
+        } else if (file.mimetype.startsWith("video/")) {
+          result = await uploadVideo(file.path, "social_media/stories");
+        } else {
+          throw new ApiError(400, `Unsupported media type: ${file.mimetype}`);
+        }
+
+        safeUnlink(file.path);
+
+        return {
+          url:
+            result?.url ||
+            result?.secure_url ||
+            result?.video?.url ||
+            result?.video?.secure_url,
+          public_id: result?.public_id || result?.video?.public_id,
+          type: file.mimetype.split("/")[0],
+        };
+      })
+    );
+  } catch (error) {
+    mediaFiles.forEach((file) => safeUnlink(file.path));
+    throw error;
+  }
 
   const story = await Story.create({
     user: req.user._id,
     media,
-    expiresAt
+    caption: req.body.caption?.trim() || "",
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
   });
 
   const populatedStory = await Story.findById(story._id)
-    .populate('user', 'username profile_picture')
-    .populate('viewers.user', 'username profile_picture');
+    .populate("user", "username profile_picture full_name")
+    .populate("viewers.user", "username profile_picture")
+    .lean();
 
-  res.status(201).json(
-    new ApiResponse(201, populatedStory, 'Story posted')
-  );
+  return res
+    .status(201)
+    .json(new ApiResponse(201, populatedStory, "Story posted successfully"));
 });
 
 const getStoriesFeed = asyncHandler(async (req, res) => {
-  // Following users + self active stories
-  const followingIds = [req.user._id, ...req.user.following];
-  
+  const followingIds = [req.user._id, ...(req.user.following || [])];
+
   const stories = await Story.find({
     user: { $in: followingIds },
-    expiresAt: { $gt: new Date() }
+    expiresAt: { $gt: new Date() },
   })
     .sort({ createdAt: -1 })
-    .populate('user', 'username profile_picture full_name')
-    .populate('viewers.user', 'username')
+    .populate("user", "username profile_picture full_name")
+    .populate("viewers.user", "username")
     .lean();
 
-  // Group by user
   const storiesByUser = stories.reduce((acc, story) => {
-    if (!acc[story.user._id.toString()]) {
-      acc[story.user._id.toString()] = {
+    const userId = story.user._id.toString();
+
+    if (!acc[userId]) {
+      acc[userId] = {
         user: story.user,
         stories: [],
-        unseenCount: 0
+        unseenCount: 0,
       };
     }
-    const seen = story.viewers.some(v => v.user._id.toString() === req.user._id.toString());
-    acc[story.user._id.toString()].stories.push(story);
-    if (!seen) acc[story.user._id.toString()].unseenCount++;
+
+    const seen = (story.viewers || []).some(
+      (viewer) => viewer.user?._id?.toString() === req.user._id.toString()
+    );
+
+    acc[userId].stories.push(story);
+    if (!seen) acc[userId].unseenCount += 1;
+
     return acc;
   }, {});
 
-  res.status(200).json(
+  const groupedStories = Object.values(storiesByUser);
+  const totalUnseen = groupedStories.reduce(
+    (sum, item) => sum + item.unseenCount,
+    0
+  );
+
+  return res.status(200).json(
     new ApiResponse(200, {
-      stories: Object.values(storiesByUser),
-      totalUnseen: Object.values(storiesByUser).reduce((sum, u) => sum + u.unseenCount, 0)
+      stories: groupedStories,
+      totalUnseen,
     })
   );
 });
 
 const markStoryAsSeen = asyncHandler(async (req, res) => {
   const { storyId } = req.params;
-  
-  const story = await Story.findById(storyId);
-  if (!story) throw new ApiError(404, 'Story not found');
 
-  // Add viewer if not exists
-  const viewerExists = story.viewers.some(v => v.user.toString() === req.user._id.toString());
+  if (!isValidObjectId(storyId)) {
+    throw new ApiError(400, "Invalid storyId");
+  }
+
+  const story = await Story.findOne({
+    _id: storyId,
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (!story) {
+    throw new ApiError(404, "Story not found or expired");
+  }
+
+  const viewerExists = story.viewers.some(
+    (viewer) => viewer.user.toString() === req.user._id.toString()
+  );
+
   if (!viewerExists) {
     story.viewers.push({ user: req.user._id });
     await story.save();
   }
 
-  res.status(200).json(new ApiResponse(200, { viewersCount: story.viewers.length }));
+  return res.status(200).json(
+    new ApiResponse(200, {
+      viewersCount: story.viewers.length,
+    }, "Story marked as seen")
+  );
 });
 
 const addStoryReaction = asyncHandler(async (req, res) => {
   const { storyId } = req.params;
   const { emoji } = req.body;
 
-  if (!emoji || emoji.length > 2) {
-    throw new ApiError(400, 'Valid emoji required (1-2 chars)');
+  if (!isValidObjectId(storyId)) {
+    throw new ApiError(400, "Invalid storyId");
   }
 
-  const story = await Story.findById(storyId);
-  if (!story) throw new ApiError(404, 'Story not found');
+  if (!emoji || typeof emoji !== "string" || emoji.trim().length > 10) {
+    throw new ApiError(400, "Valid emoji is required");
+  }
 
-  // Remove previous reaction from same user
-  story.reactions = story.reactions.filter(r => r.user.toString() !== req.user._id.toString());
-  story.reactions.push({ user: req.user._id, emoji });
+  const story = await Story.findOne({
+    _id: storyId,
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (!story) {
+    throw new ApiError(404, "Story not found or expired");
+  }
+
+  story.reactions = story.reactions.filter(
+    (reaction) => reaction.user.toString() !== req.user._id.toString()
+  );
+
+  story.reactions.push({
+    user: req.user._id,
+    emoji: emoji.trim(),
+  });
 
   await story.save();
 
-  res.status(200).json(
-    new ApiResponse(200, { reactionsCount: story.reactions.length })
+  return res.status(200).json(
+    new ApiResponse(200, {
+      reactionsCount: story.reactions.length,
+    }, "Reaction added successfully")
   );
 });
 
-export { createStory, getStoriesFeed, markStoryAsSeen, addStoryReaction };
+export {
+  createStory,
+  getStoriesFeed,
+  markStoryAsSeen,
+  addStoryReaction,
+};

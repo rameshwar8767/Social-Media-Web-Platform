@@ -1,45 +1,120 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const reelSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+const { Schema } = mongoose;
+
+const assetSchema = new Schema(
+  {
+    url: {
+      type: String,
+      required: [true, "Asset URL is required"],
+      trim: true,
+    },
+    public_id: {
+      type: String,
+      trim: true,
+      default: null,
+    },
   },
-  caption: {
-    type: String,
-    trim: true,
-    maxlength: 2200
+  { _id: false }
+);
+
+const reelSchema = new Schema(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Reel user is required"],
+    },
+    caption: {
+      type: String,
+      trim: true,
+      maxlength: [2200, "Caption cannot exceed 2200 characters"],
+      default: "",
+    },
+    video: {
+      type: new Schema(
+        {
+          url: {
+            type: String,
+            required: [true, "Video URL is required"],
+            trim: true,
+          },
+          public_id: {
+            type: String,
+            trim: true,
+            default: null,
+          },
+          duration: {
+            type: Number,
+            min: 0,
+            default: 0,
+          },
+        },
+        { _id: false }
+      ),
+      required: true,
+    },
+    thumbnail: {
+      type: assetSchema,
+      default: null,
+    },
+    likes: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    commentsCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      index: true,
+    },
+    topComments: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Comment",
+      },
+    ],
+    views: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    shares: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    saves: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
-  video: {
-    url: { type: String, required: true },
-    public_id: String,
-    duration: Number  // Seconds
-  },
-  thumbnail: {
-    url: String,
-    public_id: String
-  },
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  comments: [{
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    text: { type: String, required: true }
-  }],
-  views: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  shares: {
-    type: Number,
-    default: 0
-  },
-  saves: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
-}, {
-  timestamps: true
-});
+  {
+    timestamps: true,
+    versionKey: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+reelSchema.path("likes").validate(function (value) {
+  if (!Array.isArray(value)) return true;
+  const ids = value.map((id) => id.toString());
+  return ids.length === new Set(ids).size;
+}, "Duplicate likes are not allowed.");
+
+reelSchema.path("saves").validate(function (value) {
+  if (!Array.isArray(value)) return true;
+  const ids = value.map((id) => id.toString());
+  return ids.length === new Set(ids).size;
+}, "Duplicate saves are not allowed.");
 
 reelSchema.index({ user: 1, createdAt: -1 });
-reelSchema.index({ views: -1 });  // Trending
+reelSchema.index({ views: -1, createdAt: -1 });
+reelSchema.index({ commentsCount: -1, createdAt: -1 });
 
-export const Reel = mongoose.model('Reel', reelSchema);
+export const Reel = mongoose.model("Reel", reelSchema);

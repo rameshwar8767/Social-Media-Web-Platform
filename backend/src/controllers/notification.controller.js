@@ -1,53 +1,85 @@
-import { asyncHandler } from '../utils/asyncHandler.js';
-import { ApiResponse } from '../utils/ApiResponse.js';
-import { ApiError } from '../utils/ApiError.js';
-import { Notification } from '../models/notification.model.js';
-import { markNotificationsRead } from '../services/notification.service.js';
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { Notification } from "../models/notification.model.js";
+import { getIO } from "../sockets/socket.js";
 
 const getUserNotifications = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, read = null } = req.query;
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+  const read = req.query.read;
   const skip = (page - 1) * limit;
 
-  const notifications = await Notification.find({ 
+  const query = {
     recipient: req.user._id,
-    ...(read !== null && { isRead: read === 'true' })
-  })
-    .populate('relatedUser', 'username profile_picture full_name')
-    .populate('post', 'caption media')
-    .populate('reel', 'video')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit));
+    ...(read === "true" ? { isRead: true } : {}),
+    ...(read === "false" ? { isRead: false } : {}),
+  };
 
-  const total = await Notification.countDocuments({ recipient: req.user._id });
-
-  res.json(new ApiResponse(200, {
-    notifications,
-    unreadCount: await Notification.countDocuments({
+  const [notifications, total, unreadCount] = await Promise.all([
+    Notification.find(query)
+      .populate("relatedUser", "username profile_picture full_name")
+      .populate("post", "caption media")
+      .populate("reel", "video")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Notification.countDocuments(query),
+    Notification.countDocuments({
       recipient: req.user._id,
-      isRead: false
+      isRead: false,
     }),
-    page: Number(page),
-    hasMore: skip + notifications.length < total
-  }));
+  ]);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        notifications,
+        unreadCount,
+        pagination: {
+          page,
+          limit,
+          total,
+          hasMore: skip + notifications.length < total,
+        },
+      },
+      "Notifications fetched successfully"
+    )
+  );
 });
 
 const markAllRead = asyncHandler(async (req, res) => {
+  const now = new Date();
+
   const result = await Notification.updateMany(
     { recipient: req.user._id, isRead: false },
-    { isRead: true }
+    {
+      $set: {
+        isRead: true,
+        readAt: now,
+      },
+    }
   );
 
-  // Socket broadcast
-  const io = getIO();
-  io.to(req.user._id.toString()).emit('notifications_read', { 
-    count: result.modifiedCount 
-  });
+  try {
+    const io = getIO();
+    io.to(req.user._id.toString()).emit("notifications_read", {
+      count: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("Socket emit failed:", error.message);
+  }
 
-  res.json(new ApiResponse(200, { 
-    readCount: result.modifiedCount,
-    message: 'All notifications marked read'
-  }));
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        readCount: result.modifiedCount,
+      },
+      "All notifications marked as read"
+    )
+  );
 });
 
 export { getUserNotifications, markAllRead };

@@ -1,12 +1,20 @@
-import express from 'express';
+import express from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { upload } from '../middlewares/upload.middleware.js';
-import { createPost, getFeed, likeUnlikePost } from '../controllers/post.controller.js';
+import { upload } from "../middlewares/upload.middleware.js";
+import {
+  createPost,
+  getFeed,
+  likeUnlikePost,
+  deletePost,
+} from "../controllers/post.controller.js";
 
 const router = express.Router();
 
-router.post('/', verifyJWT, upload.array('media', 10), createPost);
-router.get('/feed', verifyJWT, getFeed);
-router.patch('/:postId/like', verifyJWT, likeUnlikePost);
+router.use(verifyJWT);
+
+router.post("/", upload.array("media", 10), createPost);
+router.get("/feed", getFeed);
+router.patch("/:postId/like", likeUnlikePost);
+router.delete("/:postId", deletePost);
 
 export default router;

@@ -1,15 +1,19 @@
-import express from 'express';
-import { verifyJWT } from '../middlewares/auth.middleware.js';
-import { 
-  getUserChats, 
+import express from "express";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import {
+  getUserChats,
   getChatMessages,
-  sendTextMessage 
-} from '../controllers/chat.controller.js';
+  sendTextMessage,
+  markMessagesRead,
+} from "../controllers/chat.controller.js";
 
 const router = express.Router();
 
-router.get('/', verifyJWT, getUserChats);
-router.get('/:chatId/messages', verifyJWT, getChatMessages);
-router.post('/:chatId/message', verifyJWT, sendTextMessage);
+router.use(verifyJWT);
+
+router.get("/", getUserChats);
+router.get("/:chatId/messages", getChatMessages);
+router.post("/:chatId/messages", sendTextMessage);
+router.patch("/:chatId/read", markMessagesRead);
 
 export default router;

@@ -9,10 +9,7 @@ import {
   resetPassword,
   refreshAccessToken,
   changePassword,
-  getUserProfile,
-  updateUserProfile,
 } from "../controllers/auth.controller.js";
-
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -35,10 +32,6 @@ router.post("/resend-verification", resendVerificationEmail);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.post("/change-password", verifyJWT, changePassword);
-
-/* PROFILE */
-router.get("/me", verifyJWT, getUserProfile);
-router.patch("/me", verifyJWT, updateUserProfile);
 
 /* TOKEN */
 router.post("/refresh-token", refreshAccessToken);

@@ -1,34 +1,105 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const notificationSchema = new mongoose.Schema({
-  recipient: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    index: true
+const { Schema } = mongoose;
+
+const notificationSchema = new Schema(
+  {
+    recipient: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Recipient is required"],
+      index: true,
+    },
+    type: {
+      type: String,
+      enum: [
+        "like_post",
+        "like_reel",
+        "comment_post",
+        "comment_reel",
+        "follow",
+        "story_react",
+        "chat_message",
+      ],
+      required: [true, "Notification type is required"],
+    },
+    relatedUser: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Related user is required"],
+    },
+    post: {
+      type: Schema.Types.ObjectId,
+      ref: "Post",
+      default: null,
+    },
+    reel: {
+      type: Schema.Types.ObjectId,
+      ref: "Reel",
+      default: null,
+    },
+    story: {
+      type: Schema.Types.ObjectId,
+      ref: "Story",
+      default: null,
+    },
+    chatId: {
+      type: Schema.Types.ObjectId,
+      ref: "Chat",
+      default: null,
+    },
+    isRead: {
+      type: Boolean,
+      default: false,
+    },
+    readAt: {
+      type: Date,
+      default: null,
+    },
+    message: {
+      type: String,
+      trim: true,
+      maxlength: [300, "Notification message cannot exceed 300 characters"],
+      default: null,
+    },
   },
-  type: {
-    type: String,
-    enum: ['like_post', 'like_reel', 'comment_post', 'follow', 'story_react', 'chat_message'],
-    required: true
-  },
-  relatedUser: {  // Who triggered (liker, commenter)
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },     // Null for non-post
-  reel: { type: mongoose.Schema.Types.ObjectId, ref: 'Reel' },     // Null for non-reel
-  story: { type: mongoose.Schema.Types.ObjectId, ref: 'Story' },   // Null for non-story
-  chatId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat' },   // For messages
-  isRead: {
-    type: Boolean,
-    default: false
-  },
-  message: String  // "user1 liked your post"
-}, {
-  timestamps: true
+  {
+    timestamps: true,
+    versionKey: false,
+  }
+);
+
+notificationSchema.pre("validate", function (next) {
+  const { type, post, reel, story, chatId } = this;
+
+  if (type === "like_post" || type === "comment_post") {
+    if (!post) {
+      return next(new Error(`${type} notification requires post`));
+    }
+  }
+
+  if (type === "like_reel" || type === "comment_reel") {
+    if (!reel) {
+      return next(new Error(`${type} notification requires reel`));
+    }
+  }
+
+  if (type === "story_react") {
+    if (!story) {
+      return next(new Error("story_react notification requires story"));
+    }
+  }
+
+  if (type === "chat_message") {
+    if (!chatId) {
+      return next(new Error("chat_message notification requires chatId"));
+    }
+  }
+
+  next();
 });
 
 notificationSchema.index({ recipient: 1, createdAt: -1 });
-export const Notification = mongoose.model('Notification', notificationSchema);
+notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
+
+export const Notification = mongoose.model("Notification", notificationSchema);

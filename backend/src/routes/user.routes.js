@@ -2,18 +2,20 @@ import express from "express";
 import {
   getMyProfile,
   getUserProfile,
-  updateProfile,        // ✅ Need this controller
-  toggleFollow,         // ✅ Need this controller  
+  updateProfile,
+  toggleFollow,
   searchUsers,
-} from "../controllers/user.controllers.js";  // Fixed: user.controller.js (singular)
-import { verifyJWT } from "../middlewares/auth.middleware.js";  // Fixed: verifyJWT + path
+} from "../controllers/user.controller.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/me", verifyJWT, getMyProfile);
-router.get("/search", verifyJWT, searchUsers);
-router.get("/:username", verifyJWT, getUserProfile);
-router.put("/profile", verifyJWT, updateProfile);
-router.post("/:id/follow", verifyJWT, toggleFollow);  // Toggle follow/unfollow
+router.use(verifyJWT);
+
+router.get("/me", getMyProfile);
+router.get("/search", searchUsers);
+router.put("/profile", updateProfile);
+router.post("/:id/follow", toggleFollow);
+router.get("/:username", getUserProfile);
 
 export default router;
