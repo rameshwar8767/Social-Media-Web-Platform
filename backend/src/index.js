@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 const startServer = async () => {
   try {
     await connectDB();
-    
+
     const server = http.createServer(app);
     initSocket(server);
 
@@ -19,7 +19,7 @@ const startServer = async () => {
       console.log(`🚀 API + Socket.IO → http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Failed:", error);
+    console.error("❌ Failed to start server:", error);
     process.exit(1);
   }
 };

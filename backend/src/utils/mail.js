@@ -1,95 +1,66 @@
-import nodemailer from 'nodemailer';
-import Mailgen from 'mailgen';
+import nodemailer from "nodemailer";
 
-let transporter;
+const requiredEnvVars = [
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASS",
+  "MAIL_FROM",
+];
 
-try {
-  transporter = nodemailer.createTransport({
-    host: process.env.MAILTRAP_SMTP_HOST || 'sandbox.smtp.mailtrap.io',
-    port: parseInt(process.env.MAILTRAP_SMTP_PORT || '25'),  // Port 25 = most reliable
-    secure: false,
-    tls: { rejectUnauthorized: false },
-    auth: {
-      user: process.env.MAILTRAP_SMTP_USER,
-      pass: process.env.MAILTRAP_SMTP_PASS
-    },
-    connectionTimeout: 10000,  // 10s max
-    greetingTimeout: 5000,
-    socketTimeout: 10000
-  });
-  
-  console.log('📧 Mailtrap configured');
-} catch (error) {
-  console.warn('⚠️ Mailtrap setup failed, using dummy mailer');
-  transporter = {
-    sendMail: async () => ({ messageId: 'dummy-123' })
-  };
-}
+const isMailConfigured = requiredEnvVars.every((key) => !!process.env[key]);
 
-const sendMail = async (options) => {
-  try {
-    const mailGenerator = new Mailgen({
-      theme: 'default',
-      product: { name: 'LinkUp 👋', link: process.env.FRONTEND_URL || 'http://localhost:5173' }
-    });
+const transporter = isMailConfigured
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+  : null;
 
-    const emailContent = {
-      body: {
-        name: options.name || 'User',
-        intro: options.intro || '',
-        ...(options.action && {
-          action: {
-            instructions: options.action.instructions || '',
-            button: { color: options.action.color || '#10b981', text: options.action.text, link: options.action.link }
-          }
-        }),
-        outro: options.outro || ''
-      }
-    };
-
-    const emailText = mailGenerator.generatePlaintext(emailContent);
-    const emailBody = mailGenerator.generate(emailContent);
-
-    const info = await transporter.sendMail({
-      from: `"LinkUp" <${process.env.MAIL_FROM || 'noreply@linkup.app'}>`,
-      to: options.to,
-      subject: options.subject,
-      text: emailText,
-      html: emailBody
-    });
-
-    console.log('✅ Email sent:', info.messageId, options.to);
-    return info;
-  } catch (error) {
-    console.error('⚠️ Email failed (continuing):', error.message.split('\n')[0]);
-    // Don't throw → Registration continues!
-    return { messageId: 'skipped-' + Date.now() };
+export const sendMail = async ({
+  to,
+  subject,
+  text = "",
+  html = "",
+  from = process.env.MAIL_FROM,
+  attachments = [],
+}) => {
+  if (!isMailConfigured || !transporter) {
+    throw new Error("Mail service is not configured properly");
   }
-};
 
-export const sendVerificationEmail = async (user, token) => {
-  const url = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email/${token}`;
-  await sendMail({
-    to: user.email,
-    subject: '✅ Verify LinkUp Account',
-    name: user.full_name,
-    intro: `Welcome ${user.full_name}!`,
-    action: { instructions: 'Verify:', color: '#10b981', text: 'Verify Email', link: url },
-    outro: '24h expiry.'
+  if (!to) {
+    throw new Error("Recipient email is required");
+  }
+
+  if (!subject) {
+    throw new Error("Email subject is required");
+  }
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    text,
+    html,
+    attachments,
   });
-  console.log(`✅ Verification setup for: ${user.email}`);
+
+  return info;
 };
 
-export const sendResetPasswordEmail = async (user, token) => {
-  const url = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${token}`;
-  await sendMail({
-    to: user.email,
-    subject: '🔑 Reset Password',
-    name: user.full_name,
-    intro: 'Password reset requested.',
-    action: { instructions: 'Reset:', color: '#ef4444', text: 'Reset Now', link: url },
-    outro: '15min expiry.'
-  });
+export const verifyMailConnection = async () => {
+  if (!isMailConfigured || !transporter) {
+    return false;
+  }
+
+  await transporter.verify();
+  return true;
 };
 
-export default { sendMail, sendVerificationEmail, sendResetPasswordEmail };
+export default transporter;

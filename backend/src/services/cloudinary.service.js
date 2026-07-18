@@ -1,137 +1,176 @@
-import { v2 as cloudinary } from 'cloudinary';
-import dotenv from 'dotenv';
-dotenv.config();
+import fs from "fs/promises";
+import cloudinary from "../config/cloudinary.js";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true
-});
-
-// Image upload + optimization
-export const uploadImage = async (filePath, folder = 'social_media') => {
+const safeUnlink = async (filePath) => {
+  if (!filePath) return;
   try {
-    const result = await cloudinary.uploader.upload(filePath, {
-      folder,
-      resource_type: 'image',
-      quality: 'auto:good',  // Auto compression
-      format: 'auto',        // WebP/AVIF
-      width: 1080,           // Max width
-      height: 1080,
-      crop: 'limit',         // Don't stretch
-      fetch_format: 'auto'
-    });
-    
-    fs.unlinkSync(filePath);  // Cleanup
-    return {
-      url: result.secure_url,
-      public_id: result.public_id
-    };
-  } catch (error) {
-    throw new Error(`Image upload failed: ${error.message}`);
+    await fs.unlink(filePath);
+  } catch {}
+};
+
+const ensureCloudinaryResult = (result, message) => {
+  if (!result?.secure_url || !result?.public_id) {
+    throw new Error(message);
   }
 };
 
-// Video upload + thumbnail
-export const uploadVideo = async (filePath, folder = 'social_media') => {
+export const uploadImage = async (filePath, folder = "social_media") => {
   try {
     const result = await cloudinary.uploader.upload(filePath, {
       folder,
-      resource_type: 'video',
-      quality: 'auto:good',
-      format: 'mp4',
-      width: 720,  // 720p for reels
-      height: 1280,
-      crop: 'limit',
-      video_codec: 'h264'  // Web compatible
+      resource_type: "image",
+      transformation: [
+        { width: 1080, height: 1080, crop: "limit" },
+        { quality: "auto:good", fetch_format: "auto" },
+      ],
     });
 
-    // Generate thumbnail at 1s
-    const thumbnailResult = await cloudinary.api.create_upload_preset({
-      folder: `${folder}/thumbnails`,
-      resource_type: 'video'
+    ensureCloudinaryResult(result, "Invalid Cloudinary image upload response");
+
+    return {
+      url: result.secure_url,
+      public_id: result.public_id,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      resource_type: result.resource_type,
+    };
+  } catch (error) {
+    throw new Error(`Image upload failed: ${error.message}`);
+  } finally {
+    await safeUnlink(filePath);
+  }
+};
+
+export const uploadVideo = async (filePath, folder = "social_media") => {
+  try {
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder,
+      resource_type: "video",
+      transformation: [
+        { width: 720, height: 1280, crop: "limit" },
+        { quality: "auto:good" },
+      ],
+      format: "mp4",
     });
 
-    const thumbnail = await cloudinary.uploader.upload(
-      result.secure_url + '/v1:1',  // 1st second frame
-      { public_id: result.public_id + '_thumb' }
-    );
+    ensureCloudinaryResult(result, "Invalid Cloudinary video upload response");
 
-    fs.unlinkSync(filePath);
-    
+    const thumbnailUrl = cloudinary.url(`${result.public_id}.jpg`, {
+      resource_type: "video",
+      transformation: [
+        { start_offset: "1" },
+        { width: 720, height: 1280, crop: "limit" },
+        { quality: "auto:good", fetch_format: "auto" },
+      ],
+      secure: true,
+    });
+
     return {
       video: {
         url: result.secure_url,
         public_id: result.public_id,
-        duration: result.duration
+        duration: result.duration,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        resource_type: result.resource_type,
       },
       thumbnail: {
-        url: thumbnail.secure_url,
-        public_id: thumbnail.public_id
-      }
+        url: thumbnailUrl,
+        public_id: `${result.public_id}.jpg`,
+      },
     };
   } catch (error) {
     throw new Error(`Video upload failed: ${error.message}`);
+  } finally {
+    await safeUnlink(filePath);
   }
 };
 
-// Story media (square, optimized)
-export const uploadStoryMedia = async (filePath, folder = 'social_media/stories') => {
-  const result = await cloudinary.uploader.upload(filePath, {
-    folder,
-    resource_type: 'auto',
-    quality: 'auto:eco',  // Max compression
-    width: 1080,
-    height: 1920,
-    crop: 'fill',
-    gravity: 'auto',
-    format: 'auto'
-  });
-  
-  fs.unlinkSync(filePath);
-  return {
-    url: result.secure_url,
-    public_id: result.public_id
-  };
+export const uploadStoryMedia = async (
+  filePath,
+  folder = "social_media/stories"
+) => {
+  try {
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder,
+      resource_type: "auto",
+      transformation: [
+        { width: 1080, height: 1920, crop: "fill", gravity: "auto" },
+        { quality: "auto:eco", fetch_format: "auto" },
+      ],
+    });
+
+    ensureCloudinaryResult(result, "Invalid Cloudinary story upload response");
+
+    return {
+      url: result.secure_url,
+      public_id: result.public_id,
+      resource_type: result.resource_type,
+      format: result.format,
+    };
+  } catch (error) {
+    throw new Error(`Story media upload failed: ${error.message}`);
+  } finally {
+    await safeUnlink(filePath);
+  }
 };
 
-// Chat media (small, fast)
-export const uploadChatMedia = async (filePath, folder = 'social_media/chats') => {
-  const result = await cloudinary.uploader.upload(filePath, {
-    folder,
-    resource_type: 'auto',
-    quality: 'auto:low',
-    width: 800,
-    height: 800,
-    crop: 'limit'
-  });
-  
-  fs.unlinkSync(filePath);
-  return {
-    url: result.secure_url,
-    public_id: result.public_id
-  };
+export const uploadChatMedia = async (
+  filePath,
+  folder = "social_media/chats"
+) => {
+  try {
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder,
+      resource_type: "auto",
+      transformation: [
+        { width: 800, height: 800, crop: "limit" },
+        { quality: "auto:low", fetch_format: "auto" },
+      ],
+    });
+
+    ensureCloudinaryResult(result, "Invalid Cloudinary chat media upload response");
+
+    return {
+      url: result.secure_url,
+      public_id: result.public_id,
+      resource_type: result.resource_type,
+      format: result.format,
+    };
+  } catch (error) {
+    throw new Error(`Chat media upload failed: ${error.message}`);
+  } finally {
+    await safeUnlink(filePath);
+  }
 };
 
-// Optimized URL generator
-export const getOptimizedUrl = (publicId, type = 'image', options = {}) => {
-  const transformations = {
-    quality: 'auto:good',
-    format: 'auto',
-    ...options
-  };
-
+export const getOptimizedUrl = (
+  publicId,
+  resourceType = "image",
+  options = {}
+) => {
   return cloudinary.url(publicId, {
-    resource_type: type,
-    transformation: transformations
+    resource_type: resourceType,
+    secure: true,
+    transformation: [
+      {
+        quality: "auto:good",
+        fetch_format: "auto",
+        ...options,
+      },
+    ],
   });
 };
 
-// Delete media (cleanup)
-export const deleteMedia = async (publicId, resourceType = 'image') => {
-  await cloudinary.uploader.destroy(publicId, { 
-    resource_type: resourceType 
+export const deleteMedia = async (publicId, resourceType = "image") => {
+  if (!publicId) {
+    throw new Error("publicId is required");
+  }
+
+  return await cloudinary.uploader.destroy(publicId, {
+    resource_type: resourceType,
   });
 };
 

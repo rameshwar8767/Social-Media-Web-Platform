@@ -1,222 +1,116 @@
-// import { Server } from 'socket.io';
-// import jwt from 'jsonwebtoken';
-// import { User } from '../models/user.model.js';
-// import { uploadToCloudinary } from '../config/cloudinary.js';
-// import fs from 'fs';
-// import redis from '../config/redis.js';  // For online status
+import { Notification } from "../models/notification.model.js";
+import { Post } from "../models/post.model.js";
+import { Reel } from "../models/reel.model.js";
+import { Story } from "../models/story.model.js";
+import { createNotification, markNotificationsRead } from "../services/notification.service.js";
 
-// let io;
+const withSocketErrorHandler = (socket, handler) => {
+  return async (...args) => {
+    try {
+      await handler(...args);
+    } catch (error) {
+      socket.emit("notification_error", {
+        message: error.message || "Notification event failed",
+      });
+    }
+  };
+};
 
-// export const initSocket = (httpServer) => {
-//   io = new Server(httpServer, {
-//     cors: {
-//       origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-//       credentials: true,
-//       methods: ['GET', 'POST']
-//     }
-//   });
+export const handleNotificationEvents = (socket, io) => {
+  socket.on(
+    "post_liked",
+    withSocketErrorHandler(socket, async ({ postId, action }) => {
+      if (action !== "like" || !postId) return;
 
-//   io.use(async (socket, next) => {
-//     try {
-//       const token = socket.handshake.auth.token || 
-//                    socket.handshake.headers.authorization?.replace('Bearer ', '');
-//       if (!token) return next(new Error('Authentication required'));
+      const post = await Post.findById(postId).select("user");
+      if (!post || post.user?.toString() === socket.user._id.toString()) return;
 
-//       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-//       socket.user = await User.findById(decoded._id).select('username _id profile_picture');
-//       next();
-//     } catch (error) {
-//       next(new Error('Invalid token'));
-//     }
-//   });
+      await createNotification("like_post", post.user, socket.user._id, {
+        post: postId,
+      });
+    })
+  );
 
-//   io.on('connection', (socket) => {
-//     console.log(`👤 ${socket.user.username} connected (ID: ${socket.user._id})`);
+  socket.on(
+    "reel_liked",
+    withSocketErrorHandler(socket, async ({ reelId, action }) => {
+      if (action !== "like" || !reelId) return;
 
-//     // Online status → Redis
-//     redis.sadd('online_users', socket.user._id.toString());
-//     redis.expire('online_users', 300);  // 5min TTL
+      const reel = await Reel.findById(reelId).select("user");
+      if (!reel || reel.user?.toString() === socket.user._id.toString()) return;
 
-//     socket.broadcast.emit('user_online', { 
-//       userId: socket.user._id, 
-//       username: socket.user.username 
-//     });
-    
-//     socket.on('disconnect', async () => {
-//       console.log(`👤 ${socket.user.username} disconnected`);
-//       await redis.srem('online_users', socket.user._id.toString());
-//       socket.broadcast.emit('user_offline', socket.user._id);
-//     });
+      await createNotification("like_reel", reel.user, socket.user._id, {
+        reel: reelId,
+      });
+    })
+  );
 
-//     // Personal room
-//     socket.join(socket.user._id.toString());
+  socket.on(
+    "comment_added",
+    withSocketErrorHandler(socket, async ({ postId, commentId }) => {
+      if (!postId || !commentId) return;
 
-//     // Chat events
-//     socket.on('join_chat', ({ chatId }) => {
-//       socket.join(chatId);
-//       socket.to(chatId).emit('user_joined_chat', {
-//         userId: socket.user._id,
-//         username: socket.user.username,
-//         profile_picture: socket.user.profile_picture
-//       });
-//     });
+      const post = await Post.findById(postId).select("user");
+      if (!post || post.user?.toString() === socket.user._id.toString()) return;
 
-//     // Enhanced message handler ✅
-//     socket.on('send_message', async ({ chatId, content, type = 'text', media }) => {
-//       let messageData = {
-//         chatId,
-//         sender: socket.user._id,
-//         senderName: socket.user.username,
-//         senderPic: socket.user.profile_picture,
-//         content,
-//         type,
-//         timestamp: new Date().toISOString()
-//       };
+      await createNotification("comment_post", post.user, socket.user._id, {
+        post: postId,
+        comment: commentId,
+      });
+    })
+  );
 
-//       // Media upload (file path or buffer)
-//       if (media && media.path) {
-//         try {
-//           const result = await uploadToCloudinary(media.path, {
-//             folder: 'social_media/chats',
-//             resource_type: 'auto'
-//           });
-//           messageData.media = {
-//             url: result.secure_url,
-//             public_id: result.public_id,
-//             type: media.type || 'image'
-//           };
-//           fs.unlinkSync(media.path);  // Cleanup
-//         } catch (err) {
-//           socket.emit('message_error', { error: 'Media upload failed' });
-//           return;
-//         }
-//       }
-
-//       // Broadcast to room
-//       socket.to(chatId).emit('receive_message', messageData);
-      
-//       // Echo to sender
-//       socket.emit('message_sent', messageData);
-//     });
-
-//     // Typing indicator
-//     socket.on('typing', ({ chatId, isTyping }) => {
-//       socket.to(chatId).emit('user_typing', { 
-//         userId: socket.user._id, 
-//         username: socket.user.username,
-//         isTyping 
-//       });
-//     });
-
-//     // Message read receipt
-//     socket.on('message_read', ({ chatId, messageId }) => {
-//       socket.to(chatId).emit('message_read', { 
-//         messageId, 
-//         userId: socket.user._id 
-//       });
-//     });
-//   });
-
-//   console.log('✅ Socket.IO initialized');
-//   return io;
-// };
-
-// export const getIO = () => io;
-import { getIO } from './index.js';
-import { Notification } from '../models/Notification.js';
-import { createNotification } from '../services/notification.service.js';
-import { Post } from '../models/Post.js';
-import { Reel } from '../models/Reel.js';
-import { Comment } from '../models/Comment.js';
-
-export const initNotificationHandler = (io) => {
-  // Like notifications (posts/reels/comments)
-  io.on('connection', (socket) => {
-    // Post like → Notify owner
-    socket.on('post_liked', async ({ postId, action }) => {  // action: 'like' | 'unlike'
-      const post = await Post.findById(postId).populate('user');
-      if (!post || post.user._id.equals(socket.user._id)) return;
-
-      if (action === 'like') {
-        const notification = await createNotification(
-          'like_post',
-          post.user._id,
-          socket.user._id,
-          { post: postId }
-        );
-        
-        // Emit to recipient
-        io.to(post.user._id.toString()).emit('new_notification', notification);
-      }
-    });
-
-    // Reel like
-    socket.on('reel_liked', async ({ reelId, action }) => {
-      const reel = await Reel.findById(reelId).populate('user');
-      if (!reel || reel.user._id.equals(socket.user._id)) return;
-
-      if (action === 'like') {
-        const notification = await createNotification(
-          'like_reel',
-          reel.user._id,
-          socket.user._id,
-          { reel: reelId }
-        );
-        io.to(reel.user._id.toString()).emit('new_notification', notification);
-      }
-    });
-
-    // Comment notifications
-    socket.on('comment_added', async ({ postId, commentId }) => {
-      const post = await Post.findById(postId).populate('user');
-      if (!post || post.user._id.equals(socket.user._id)) return;
-
-      const notification = await createNotification(
-        'comment_post',
-        post.user._id,
-        socket.user._id,
-        { post: postId }
-      );
-      io.to(post.user._id.toString()).emit('new_notification', notification);
-    });
-
-    // Follow notifications
-    socket.on('user_followed', async ({ targetUserId }) => {
+  socket.on(
+    "user_followed",
+    withSocketErrorHandler(socket, async ({ targetUserId }) => {
+      if (!targetUserId) return;
       if (targetUserId === socket.user._id.toString()) return;
 
-      const notification = await createNotification(
-        'follow',
-        targetUserId,
-        socket.user._id
-      );
-      io.to(targetUserId).emit('new_notification', notification);
-    });
+      await createNotification("follow", targetUserId, socket.user._id);
+    })
+  );
 
-    // Story reaction
-    socket.on('story_reacted', async ({ storyId, emoji }) => {
-      const story = await Story.findById(storyId).populate('user');
-      if (!story || story.user._id.equals(socket.user._id)) return;
+  socket.on(
+    "story_reacted",
+    withSocketErrorHandler(socket, async ({ storyId, emoji }) => {
+      if (!storyId || !emoji) return;
 
-      const notification = await createNotification(
-        'story_react',
-        story.user._id,
-        socket.user._id,
-        { 
-          story: storyId,
-          emoji 
+      const story = await Story.findById(storyId).select("user");
+      if (!story || story.user?.toString() === socket.user._id.toString()) return;
+
+      await createNotification("story_react", story.user, socket.user._id, {
+        story: storyId,
+        emoji,
+      });
+    })
+  );
+
+  socket.on(
+    "notifications_read",
+    withSocketErrorHandler(socket, async ({ notificationIds = [] }) => {
+      const result = await markNotificationsRead(socket.user._id, notificationIds);
+
+      socket.emit("notifications_marked_read", result);
+    })
+  );
+
+  socket.on(
+    "notifications_clear_all",
+    withSocketErrorHandler(socket, async () => {
+      const result = await Notification.updateMany(
+        {
+          recipient: socket.user._id,
+          isRead: false,
+        },
+        {
+          $set: { isRead: true },
         }
       );
-      io.to(story.user._id.toString()).emit('new_notification', notification);
-    });
 
-    // Notification read/clear
-    socket.on('notifications_read', async ({ notificationIds }) => {
-      await Notification.updateMany(
-        { _id: { $in: notificationIds } },
-        { isRead: true }
-      );
-      
-      socket.emit('notifications_cleared');
-    });
-  });
+      socket.emit("notifications_marked_read", {
+        matchedCount: result.matchedCount ?? result.n ?? 0,
+        modifiedCount: result.modifiedCount ?? result.nModified ?? 0,
+      });
+    })
+  );
 };
